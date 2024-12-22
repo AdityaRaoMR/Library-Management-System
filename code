@@ -1,0 +1,299 @@
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <limits>
+#include <ctime>
+
+class Book {
+public:
+    int id;
+    std::string title;
+    std::string author;
+    bool isAvailable;
+
+    Book(int id, const std::string& title, const std::string& author)
+        : id(id), title(title), author(author), isAvailable(true) {}
+
+    void display() const {
+        std::cout << "ID: " << id << ", Title: " << title << ", Author: " << author 
+                  << ", Available: " << (isAvailable ? "Yes" : "No") << "\n";
+    }
+};
+
+class Member {
+public:
+    int id;
+    std::string name;
+    std::string email;
+
+    Member(int id, const std::string& name, const std::string& email)
+        : id(id), name(name), email(email) {}
+
+    void display() const {
+        std::cout << "ID: " << id << ", Name: " << name << ", Email: " << email << "\n";
+    }
+};
+
+class Transaction {
+public:
+    int memberId;
+    int bookId;
+    std::string dateIssued;
+    std::string dueDate;
+
+    Transaction(int memberId, int bookId, const std::string& dateIssued, const std::string& dueDate)
+        : memberId(memberId), bookId(bookId), dateIssued(dateIssued), dueDate(dueDate) {}
+
+    void display() const {
+        std::cout << "Member ID: " << memberId << ", Book ID: " << bookId 
+                  << ", Date Issued: " << dateIssued << ", Due Date: " << dueDate << "\n";
+    }
+};
+
+class Library {
+private:
+    std::vector<Book> books;
+    std::vector<Member> members;
+    std::vector<Transaction> transactions;
+    int nextBookId;
+    int nextMemberId;
+
+public:
+    Library() : nextBookId(0), nextMemberId(0) {
+        loadBooks();
+        loadMembers();
+        loadTransactions();
+    }
+
+    ~Library() {
+        saveBooks();
+        saveMembers();
+        saveTransactions();
+    }
+
+    void addBook(const std::string& title, const std::string& author) {
+        books.emplace_back(nextBookId++, title, author);
+        std::cout << "Book added: " << title << "\n";
+    }
+
+    void addMember(const std::string& name, const std::string& email) {
+        members.emplace_back(nextMemberId++, name, email);
+        std::cout << "Member added: " << name << "\n";
+    }
+
+    void issueBook(int memberId, int bookId) {
+        if (bookId < 0 || bookId >= books.size() || !books[bookId].isAvailable) {
+            std::cout << "Book not available for issuing.\n";
+            return;
+        }
+        std::string dateIssued = currentDate();
+        std::string dueDate = calculateDueDate();
+        transactions.emplace_back(memberId, bookId, dateIssued, dueDate);
+        books[bookId].isAvailable = false;
+        std::cout << "Book issued to member ID: " << memberId << "\n";
+    }
+
+    void returnBook(int bookId) {
+        if (bookId < 0 || bookId >= books.size()) {
+            std::cout << "Invalid book ID.\n";
+            return;
+        }
+        books[bookId].isAvailable = true;
+        std::cout << "Book returned: " << books[bookId].title << "\n";
+    }
+
+    void viewBooks() const {
+        std::cout << "--- Books in Library ---\n";
+        for (const auto& book : books) {
+            book.display();
+        }
+    }
+
+    void viewMembers() const {
+        std::cout << "--- Library Members ---\n";
+        for (const auto& member : members) {
+            member.display();
+        }
+    }
+
+    void viewTransactions() const {
+        std::cout << "--- Transactions ---\n";
+        for (const auto& transaction : transactions) {
+            transaction.display();
+        }
+    }
+
+    void saveBooks() const {
+        std::ofstream file("books.txt");
+        for (const auto& book : books) {
+            file << book.id << ";" << book.title << ";" << book.author << ";" << book.isAvailable << "\n";
+        }
+    }
+
+    void saveMembers() const {
+        std::ofstream file("members.txt");
+        for (const auto& member : members) {
+            file << member.id << ";" << member.name << ";" << member.email << "\n";
+        }
+    }
+
+    void saveTransactions() const {
+        std::ofstream file("transactions.txt");
+        for (const auto& transaction : transactions) {
+            file << transaction.memberId << ";" << transaction.bookId 
+                 << ";" << transaction.dateIssued << ";" << transaction.dueDate << "\n";
+        }
+    }
+
+    void loadBooks() {
+        std::ifstream file("books.txt");
+        std::string line;
+        while (std::getline(file, line)) {
+            std::istringstream iss(line);
+            int id;
+            std::string title, author;
+            bool isAvailable;
+            char sep;
+            iss >> id >> sep >> std::ws;
+            std::getline(iss, title, ';');
+            std::getline(iss, author, ';');
+            iss >> isAvailable;
+            books.emplace_back(id, title, author);
+            books.back().isAvailable = isAvailable;
+            nextBookId = std::max(nextBookId, id + 1);
+        }
+    }
+
+    void loadMembers() {
+        std::ifstream file("members.txt");
+        std::string line;
+        while (std::getline(file, line)) {
+            std::istringstream iss(line);
+            int id;
+            std::string name, email;
+            char sep;
+            iss >> id >> sep >> std::ws;
+            std::getline(iss, name, ';');
+            std::getline(iss, email, ';');
+            members.emplace_back(id, name, email);
+            nextMemberId = std::max(nextMemberId, id + 1);
+        }
+    }
+
+    void loadTransactions() {
+        std::ifstream file("transactions.txt");
+        std::string line;
+        while (std::getline(file, line)) {
+            std::istringstream iss(line);
+            int memberId, bookId;
+            std::string dateIssued, dueDate;
+            char sep;
+            iss >> memberId >> sep >> bookId >> sep >> std::ws;
+            std::getline(iss, dateIssued, ';');
+            std::getline(iss, dueDate, ';');
+            transactions.emplace_back(memberId, bookId, dateIssued, dueDate);
+        }
+    }
+
+    std::string currentDate() const {
+        time_t now = time(0);
+        tm* localtm = localtime(&now);
+        char buffer[80];
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d", localtm);
+        return std::string(buffer);
+    }
+
+    std::string calculateDueDate() const {
+        time_t now = time(0);
+        tm* localtm = localtime(&now);
+        localtm->tm_mday += 14; // 2 weeks due date
+        mktime(localtm);
+        char buffer[80];
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d", localtm);
+        return std::string(buffer);
+    }
+
+    void displayMenu() const {
+        std::cout << "\n--- Library Management System ---\n";
+        std::cout << "1. Add Book\n";
+        std::cout << "2. Add Member\n";
+        std::cout << "3. Issue Book\n";
+        std::cout << "4. Return Book\n";
+        std::cout << "5. View Books\n";
+        std::cout << "6. View Members\n";
+        std::cout << "7. View Transactions\n";
+        std::cout << "8. Exit\n";
+    }
+
+    void handleUserChoice(int choice) {
+        std::string title, author, name, email;
+        int id;
+
+        switch (choice) {
+            case 1:
+                std::cout << "Enter book title: ";
+                std::cin.ignore();
+                std::getline(std::cin, title);
+                std::cout << "Enter book author: ";
+                std::getline(std::cin, author);
+                addBook(title, author);
+                break;
+            case 2:
+                std::cout << "Enter member name: ";
+                std::cin.ignore();
+                std::getline(std::cin, name);
+                std::cout << "Enter member email: ";
+                std::getline(std::cin, email);
+                addMember(name, email);
+                break;
+            case 3:
+                std::cout << "Enter member ID: ";
+                std::cin >> id;
+                std::cout << "Enter book ID: ";
+                std::cin >> id;
+                issueBook(id, id);
+                break;
+            case 4:
+                std::cout << "Enter book ID to return: ";
+                std::cin >> id;
+                returnBook(id);
+                break;
+            case 5:
+                viewBooks();
+                break;
+            case 6:
+                viewMembers();
+                break;
+            case 7:
+                viewTransactions();
+                break;
+            case 8:
+                std::cout << "Exiting...\n";
+                exit(0);
+            default:
+                std::cout << "Invalid option. Please try again.\n";
+        }
+    }
+
+    void run() {
+        int choice;
+        while (true) {
+            displayMenu();
+            std::cout << "Choose an option: ";
+            while (!(std::cin >> choice)) {
+                std::cin.clear(); // Clear error flag
+                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Ignore invalid input
+                std::cout << "Invalid input. Please enter a number: ";
+            }
+            handleUserChoice(choice);
+        }
+    }
+};
+
+int main() {
+    Library library;
+    library.run();
+    return 0;
+}
